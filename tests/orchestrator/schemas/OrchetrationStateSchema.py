@@ -22,6 +22,7 @@ schema = {
                         "functionName": {"type": "string"},
                         "actionType": {"type": "number"},
                         "input": {},
+                        "preserveUnprocessedEvents": {"type": "boolean"},
                         "retryOptions": {
                             "type": "object",
                             "properties": {
