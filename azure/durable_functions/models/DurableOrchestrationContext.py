@@ -25,7 +25,6 @@ import inspect
 from typing import DefaultDict, List, Any, Dict, Optional, Tuple, Union, Callable
 from uuid import UUID, uuid5, NAMESPACE_URL, NAMESPACE_OID
 from datetime import timezone
-from datetime import timedelta
 
 from .RetryOptions import RetryOptions
 from .FunctionContext import FunctionContext
@@ -625,9 +624,10 @@ class DurableOrchestrationContext:
             Whether to preserve unprocessed external events to the new orchestrator generation
         """
         if (preserve_unprocessed_events and self._replay_schema.value < ReplaySchema.V4.value):
-            error = "Preserving unprocessed events is unsupported in this Durable Functions extension version. "\
-                    "Please ensure you're using 'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5"
-            raise Exception(error);
+            error = "Preserving unprocessed events is unsupported in this Durable Functions "\
+                    "extension version. Please ensure you're using "\
+                    "'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5"
+            raise Exception(error)
         
         continue_as_new_action: Action = ContinueAsNewAction(input_, preserve_unprocessed_events)
         self._record_fire_and_forget_action(continue_as_new_action)
