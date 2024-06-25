@@ -74,16 +74,16 @@ class DurableOrchestrationContext:
         # long_running_timer_interval_in_days = None
         # if not (maximumShortTimerDuration is None)
         #  and not (longRunningTimerIntervalDuration is None):
-        #     # Format is "DAYS.HOURS:MINUTES:SECONDS". 
+        #     # Format is "DAYS.HOURS:MINUTES:SECONDS".
         # For simplicity, we will only consider the days
-        #     maximum_short_timer_duration_in_days = 
+        #     maximum_short_timer_duration_in_days =
         # timedelta(days=int(maximumShortTimerDuration.split(".")[0]))
-        #     long_running_timer_interval_in_days = 
+        #     long_running_timer_interval_in_days =
         # timedelta(days=int(longRunningTimerIntervalDuration.split(".")[0]))
 
-        # self.max_short_timer_duration: Optional[timedelta] = 
+        # self.max_short_timer_duration: Optional[timedelta] =
         # maximum_short_timer_duration_in_days
-        # self.long_running_timer_interval_duration: Optional[timedelta] = 
+        # self.long_running_timer_interval_duration: Optional[timedelta] =
         # long_running_timer_interval_in_days
 
         if not(upperSchemaVersionNew is None):
