@@ -628,7 +628,7 @@ class DurableOrchestrationContext:
                     "extension version. Please ensure you're using "\
                     "'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5"
             raise Exception(error)
-        
+
         continue_as_new_action: Action = ContinueAsNewAction(input_, preserve_unprocessed_events)
         self._record_fire_and_forget_action(continue_as_new_action)
         self._continue_as_new_flag = True
