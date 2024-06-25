@@ -25,7 +25,6 @@ import inspect
 from typing import DefaultDict, List, Any, Dict, Optional, Tuple, Union, Callable
 from uuid import UUID, uuid5, NAMESPACE_URL, NAMESPACE_OID
 from datetime import timezone
-import warnings
 from datetime import timedelta
 
 from .RetryOptions import RetryOptions
@@ -51,7 +50,8 @@ class DurableOrchestrationContext:
     def __init__(self,
                  history: List[Dict[Any, Any]], instanceId: str, isReplaying: bool,
                  parentInstanceId: str, input: Any = None, upperSchemaVersion: int = 0,
-                 upperSchemaVersionNew: Optional[int] = None, maximumShortTimerDuration: Optional[str] = None,
+                 upperSchemaVersionNew: Optional[int] = None,
+                 maximumShortTimerDuration: Optional[str] = None,
                  longRunningTimerIntervalDuration: Optional[str] = None, **kwargs):
         self._histories: List[HistoryEvent] = [HistoryEvent(**he) for he in history]
         self._instance_id: str = instanceId
@@ -69,16 +69,22 @@ class DurableOrchestrationContext:
         self._new_uuid_counter = 0
         self._function_context: FunctionContext = FunctionContext(**kwargs)
         self._sequence_number = 0
-        
-        maximum_short_timer_duration_in_days = None
-        long_running_timer_interval_in_days = None
-        if not (maximumShortTimerDuration is None) and not (longRunningTimerIntervalDuration is None):
-            # Format is "DAYS.HOURS:MINUTES:SECONDS". For simplicity, we will only consider the days
-            maximum_short_timer_duration_in_days = timedelta(days=int(maximumShortTimerDuration.split(".")[0]))
-            long_running_timer_interval_in_days = timedelta(days=int(longRunningTimerIntervalDuration.split(".")[0]))
 
-        self.max_short_timer_duration: Optional[timedelta] = maximum_short_timer_duration_in_days
-        self.long_running_timer_interval_duration: Optional[timedelta] = long_running_timer_interval_in_days
+        # maximum_short_timer_duration_in_days = None
+        # long_running_timer_interval_in_days = None
+        # if not (maximumShortTimerDuration is None)
+        #  and not (longRunningTimerIntervalDuration is None):
+        #     # Format is "DAYS.HOURS:MINUTES:SECONDS". 
+        # For simplicity, we will only consider the days
+        #     maximum_short_timer_duration_in_days = 
+        # timedelta(days=int(maximumShortTimerDuration.split(".")[0]))
+        #     long_running_timer_interval_in_days = 
+        # timedelta(days=int(longRunningTimerIntervalDuration.split(".")[0]))
+
+        # self.max_short_timer_duration: Optional[timedelta] = 
+        # maximum_short_timer_duration_in_days
+        # self.long_running_timer_interval_duration: Optional[timedelta] = 
+        # long_running_timer_interval_in_days
 
         if not(upperSchemaVersionNew is None):
             # check if upperSchemaVersion can be parsed by ReplaySchema
@@ -619,8 +625,9 @@ class DurableOrchestrationContext:
             Whether to preserve unprocessed external events to the new orchestrator generation
         """
         if (preserve_unprocessed_events and self._replay_schema.value < ReplaySchema.V4.value):
-            raise Exception("Preserving unprocessed events is unsupported in this Durable Functions extension version. "\
-                            "Please ensure you're using 'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5");
+            error = "Preserving unprocessed events is unsupported in this Durable Functions extension version. "\
+                    "Please ensure you're using 'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5"
+            raise Exception(error);
         
         continue_as_new_action: Action = ContinueAsNewAction(input_, preserve_unprocessed_events)
         self._record_fire_and_forget_action(continue_as_new_action)
