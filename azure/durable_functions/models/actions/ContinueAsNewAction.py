@@ -14,8 +14,9 @@ class ContinueAsNewAction(Action):
     and continue as new.
     """
 
-    def __init__(self, input_=None):
+    def __init__(self, input_=None, preserve_unprocessed_actions: bool = False):
         self.input_ = dumps(input_, default=_serialize_custom_object)
+        self.preserveUnprocessedEvents = preserve_unprocessed_actions
 
     @property
     def action_type(self) -> int:
@@ -33,4 +34,5 @@ class ContinueAsNewAction(Action):
         json_dict: Dict[str, Union[int, str]] = {}
         add_attrib(json_dict, self, 'action_type', 'actionType')
         add_attrib(json_dict, self, 'input_', 'input')
+        add_attrib(json_dict, self, 'preserveUnprocessedEvents', 'preserveUnprocessedEvents')
         return json_dict

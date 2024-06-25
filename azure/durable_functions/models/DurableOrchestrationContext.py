@@ -25,6 +25,8 @@ import inspect
 from typing import DefaultDict, List, Any, Dict, Optional, Tuple, Union, Callable
 from uuid import UUID, uuid5, NAMESPACE_URL, NAMESPACE_OID
 from datetime import timezone
+import warnings
+from datetime import timedelta
 
 from .RetryOptions import RetryOptions
 from .FunctionContext import FunctionContext
@@ -48,7 +50,9 @@ class DurableOrchestrationContext:
     # parameter names are as defined by JSON schema and do not conform to PEP8 naming conventions
     def __init__(self,
                  history: List[Dict[Any, Any]], instanceId: str, isReplaying: bool,
-                 parentInstanceId: str, input: Any = None, upperSchemaVersion: int = 0, **kwargs):
+                 parentInstanceId: str, input: Any = None, upperSchemaVersion: int = 0,
+                 upperSchemaVersionNew: Optional[int] = None, maximumShortTimerDuration: Optional[str] = None,
+                 longRunningTimerIntervalDuration: Optional[str] = None, **kwargs):
         self._histories: List[HistoryEvent] = [HistoryEvent(**he) for he in history]
         self._instance_id: str = instanceId
         self._is_replaying: bool = isReplaying
@@ -65,7 +69,25 @@ class DurableOrchestrationContext:
         self._new_uuid_counter = 0
         self._function_context: FunctionContext = FunctionContext(**kwargs)
         self._sequence_number = 0
-        self._replay_schema = ReplaySchema(upperSchemaVersion)
+        
+        maximum_short_timer_duration_in_days = None
+        long_running_timer_interval_in_days = None
+        if not (maximumShortTimerDuration is None) and not (longRunningTimerIntervalDuration is None):
+            # Format is "DAYS.HOURS:MINUTES:SECONDS". For simplicity, we will only consider the days
+            maximum_short_timer_duration_in_days = timedelta(days=int(maximumShortTimerDuration.split(".")[0]))
+            long_running_timer_interval_in_days = timedelta(days=int(longRunningTimerIntervalDuration.split(".")[0]))
+
+        self.max_short_timer_duration: Optional[timedelta] = maximum_short_timer_duration_in_days
+        self.long_running_timer_interval_duration: Optional[timedelta] = long_running_timer_interval_in_days
+
+        if not(upperSchemaVersionNew is None):
+            # check if upperSchemaVersion can be parsed by ReplaySchema
+            if upperSchemaVersionNew > ReplaySchema.V4.value:
+                self._replay_schema = ReplaySchema.V4
+            else:
+                self._replay_schema = ReplaySchema(upperSchemaVersionNew)
+        else:
+            self._replay_schema = ReplaySchema(upperSchemaVersion)
 
         self._action_payload_v1: List[List[Action]] = []
         self._action_payload_v2: List[Action] = []
@@ -517,10 +539,10 @@ class DurableOrchestrationContext:
             The action to append
         """
         new_action: Union[List[Action], Action]
-        if self._replay_schema is ReplaySchema.V2:
-            new_action = action
-        else:
+        if self._replay_schema is ReplaySchema.V1:
             new_action = [action]
+        else:
+            new_action = action
         self._add_to_actions(new_action)
         self._sequence_number += 1
 
@@ -586,15 +608,21 @@ class DurableOrchestrationContext:
         task = self._generate_task(action, id_=name)
         return task
 
-    def continue_as_new(self, input_: Any):
+    def continue_as_new(self, input_: Any, preserve_unprocessed_events: bool = False):
         """Schedule the orchestrator to continue as new.
 
         Parameters
         ----------
         input_ : Any
             The new starting input to the orchestrator.
+        preserve_unprocessed_events: bool
+            Whether to preserve unprocessed external events to the new orchestrator generation
         """
-        continue_as_new_action: Action = ContinueAsNewAction(input_)
+        if (preserve_unprocessed_events and self._replay_schema.value < ReplaySchema.V4.value):
+            raise Exception("Preserving unprocessed events is unsupported in this Durable Functions extension version. "\
+                            "Please ensure you're using 'Microsoft.Azure.WebJobs.Extensions.DurableTask' >= 2.13.5");
+        
+        continue_as_new_action: Action = ContinueAsNewAction(input_, preserve_unprocessed_events)
         self._record_fire_and_forget_action(continue_as_new_action)
         self._continue_as_new_flag = True
 
@@ -641,7 +669,7 @@ class DurableOrchestrationContext:
 
         if self._replay_schema is ReplaySchema.V1 and isinstance(action_repr, list):
             self._action_payload_v1.append(action_repr)
-        elif self._replay_schema is ReplaySchema.V2 and isinstance(action_repr, Action):
+        elif isinstance(action_repr, Action):
             self._action_payload_v2.append(action_repr)
         else:
             raise Exception(f"DF-internal exception: ActionRepr of signature {type(action_repr)}"
@@ -673,7 +701,7 @@ class DurableOrchestrationContext:
                 self.open_tasks[task.id].append(task)
 
             if task.id in self.deferred_tasks:
-                task_update_action = self.deferred_tasks[task.id]
+                task_update_action = self.deferred_tasks.pop(task.id)
                 task_update_action()
         else:
             for child in task.children:
